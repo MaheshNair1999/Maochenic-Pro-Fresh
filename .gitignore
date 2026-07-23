@@ -43,6 +43,6 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
-mechpro.apk
+# mechpro.apk tracked via git-lfs
 build/
 buildlog.txt
