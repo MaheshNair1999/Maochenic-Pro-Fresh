@@ -1,0 +1,75 @@
+name: mechanic_app
+description: A professional car mechanic management app with AI-powered scanning.
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+  flutter: ">=3.10.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.8
+
+  # State Management
+  flutter_riverpod: ^2.5.1
+  riverpod_annotation: ^2.3.5
+
+  # Navigation
+  go_router: ^14.2.7
+
+  # Local Storage
+  sqflite: ^2.3.3+1
+  path_provider: ^2.1.4
+  path: ^1.9.0
+  shared_preferences: ^2.3.2
+
+  # Camera & Image
+  camera: ^0.11.0+2
+  image_picker: ^1.1.2
+  image: ^4.2.0
+
+  # OCR
+  google_mlkit_text_recognition: ^0.13.1
+
+  # AI / Gemini
+  google_generative_ai: ^0.4.6
+
+  # PDF Generation
+  pdf: ^3.11.1
+  printing: ^5.13.2
+
+  # UI
+  material_symbols_icons: ^4.2735.3
+  flutter_animate: ^4.5.0
+  cached_network_image: ^3.4.1
+  shimmer: ^3.0.0
+  lottie: ^3.1.2
+
+  # Utilities
+  uuid: ^4.4.2
+  intl: ^0.19.0
+  permission_handler: ^11.3.1
+  file_saver: ^0.2.14
+  share_plus: ^10.0.2
+  flutter_staggered_animations: ^1.1.1
+  connectivity_plus: ^6.0.5
+
+  # Functional
+  dartz: ^0.10.1
+  equatable: ^2.0.5
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+  build_runner: ^2.4.12
+  riverpod_generator: ^2.4.3
+  json_annotation: ^4.9.0
+  json_serializable: ^6.8.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/images/
