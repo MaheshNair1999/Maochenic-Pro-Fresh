@@ -291,8 +291,8 @@ class _ScanOverlay extends StatelessWidget {
     final isDoc = mode == CameraCaptureMode.registration;
 
     // Guide box dimensions
-    final boxWidth = size.width * 0.85;
-    final boxHeight = isDoc ? size.height * 0.28 : size.height * 0.40;
+    final boxWidth = size.width * 0.92;
+    final boxHeight = isDoc ? size.height * 0.42 : size.height * 0.58;
 
     return Stack(
       children: [
@@ -369,8 +369,8 @@ class _CornerMarker extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      width: 24,
-      height: 24,
+      width: 40,
+      height: 40,
       child: CustomPaint(painter: _CornerPainter()),
     );
   }
@@ -381,7 +381,7 @@ class _CornerPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
       ..color = Colors.white
-      ..strokeWidth = 3
+      ..strokeWidth = 4
       ..style = PaintingStyle.stroke
       ..strokeCap = StrokeCap.round;
 

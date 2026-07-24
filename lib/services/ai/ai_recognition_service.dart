@@ -281,7 +281,7 @@ class AiRecognitionService {
       } on GenerativeAIException catch (e) {
         // Quota exhausted — all models share the same key quota, no point
         // trying the remaining fallbacks (and we'd corrupt the error message).
-        if (_isQuotaExceeded(e)) throw e;
+        if (_isQuotaExceeded(e)) rethrow;
         lastError = e;
       } catch (e) {
         lastError = e;
