@@ -4,7 +4,6 @@ import 'package:path/path.dart';
 import '../../../core/constants/app_constants.dart';
 
 /// Singleton that manages the SQLite database lifecycle.
-/// All tables are created here; migrations are handled via [onUpgrade].
 class DatabaseHelper {
   DatabaseHelper._();
   static final DatabaseHelper instance = DatabaseHelper._();
@@ -16,7 +15,6 @@ class DatabaseHelper {
     return _db!;
   }
 
-  /// Opens (or creates) the database. Must be called before any queries.
   Future<void> init() async {
     if (_db != null) return;
     final dbPath = await getDatabasesPath();
@@ -31,12 +29,10 @@ class DatabaseHelper {
     );
   }
 
-  /// Enable foreign key enforcement.
   Future<void> _onConfigure(Database db) async {
     await db.execute('PRAGMA foreign_keys = ON');
   }
 
-  /// Creates all tables on first launch.
   Future<void> _onCreate(Database db, int version) async {
     // ── Vehicles ──────────────────────────────────────────────────────────
     await db.execute('''
@@ -51,7 +47,7 @@ class DatabaseHelper {
         year           TEXT,
         owner          TEXT,
         color          TEXT,
-        extra_fields   TEXT,       -- JSON blob for any extra OCR fields
+        extra_fields   TEXT,
         image_path     TEXT,
         created_at     INTEGER NOT NULL,
         updated_at     INTEGER NOT NULL
@@ -61,23 +57,28 @@ class DatabaseHelper {
     // ── Inventory ─────────────────────────────────────────────────────────
     await db.execute('''
       CREATE TABLE ${AppConstants.tableInventory} (
-        id                INTEGER PRIMARY KEY AUTOINCREMENT,
-        vehicle_id        INTEGER REFERENCES ${AppConstants.tableVehicles}(id) ON DELETE CASCADE,
-        vehicle_make      TEXT,
-        vehicle_model     TEXT,
-        vehicle_year      TEXT,
-        name              TEXT NOT NULL,
-        brand             TEXT,
-        part_number       TEXT,
-        oem_number        TEXT,
-        category          TEXT,
-        compatibility     TEXT,
-        quantity          INTEGER NOT NULL DEFAULT 1,
-        notes             TEXT,
-        confidence_score  REAL,
-        image_path        TEXT,
-        created_at        INTEGER NOT NULL,
-        updated_at        INTEGER NOT NULL
+        id                       INTEGER PRIMARY KEY AUTOINCREMENT,
+        vehicle_id               INTEGER REFERENCES ${AppConstants.tableVehicles}(id) ON DELETE CASCADE,
+        vehicle_make             TEXT,
+        vehicle_model            TEXT,
+        vehicle_year             TEXT,
+        name                     TEXT NOT NULL,
+        name_gr                  TEXT,
+        brand                    TEXT,
+        part_number              TEXT,
+        oem_number               TEXT,
+        category                 TEXT,
+        compatibility            TEXT,
+        description              TEXT,
+        description_gr           TEXT,
+        quantity                 INTEGER NOT NULL DEFAULT 1,
+        min_quantity             INTEGER NOT NULL DEFAULT 0,
+        compatible_vehicle_ids   TEXT,
+        notes                    TEXT,
+        confidence_score         REAL,
+        image_path               TEXT,
+        created_at               INTEGER NOT NULL,
+        updated_at               INTEGER NOT NULL
       )
     ''');
 
@@ -96,7 +97,7 @@ class DatabaseHelper {
       )
     ''');
 
-    // ── Job Parts (junction) ───────────────────────────────────────────────
+    // ── Job Parts ─────────────────────────────────────────────────────────
     await db.execute('''
       CREATE TABLE ${AppConstants.tableJobParts} (
         id           INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -110,24 +111,36 @@ class DatabaseHelper {
       )
     ''');
 
-    // Indexes for common queries
-    await db.execute(
-        'CREATE INDEX idx_jobs_vehicle ON ${AppConstants.tableJobs}(vehicle_id)');
-    await db.execute(
-        'CREATE INDEX idx_job_parts_job ON ${AppConstants.tableJobParts}(job_id)');
-    await db.execute(
-        'CREATE INDEX idx_inventory_part_number ON ${AppConstants.tableInventory}(part_number)');
-    await db.execute(
-        'CREATE INDEX idx_inventory_vehicle ON ${AppConstants.tableInventory}(vehicle_id)');
+    // ── Stock Movements ───────────────────────────────────────────────────
+    await db.execute('''
+      CREATE TABLE ${AppConstants.tableStockMovements} (
+        id               INTEGER PRIMARY KEY AUTOINCREMENT,
+        inventory_id     INTEGER NOT NULL REFERENCES ${AppConstants.tableInventory}(id) ON DELETE CASCADE,
+        type             TEXT NOT NULL,
+        quantity_change  INTEGER NOT NULL,
+        job_id           INTEGER REFERENCES ${AppConstants.tableJobs}(id) ON DELETE SET NULL,
+        notes            TEXT,
+        created_at       INTEGER NOT NULL
+      )
+    ''');
+
+    await db.execute('CREATE INDEX idx_jobs_vehicle ON ${AppConstants.tableJobs}(vehicle_id)');
+    await db.execute('CREATE INDEX idx_job_parts_job ON ${AppConstants.tableJobParts}(job_id)');
+    await db.execute('CREATE INDEX idx_inventory_part_number ON ${AppConstants.tableInventory}(part_number)');
+    await db.execute('CREATE INDEX idx_inventory_vehicle ON ${AppConstants.tableInventory}(vehicle_id)');
+    await db.execute('CREATE INDEX idx_stock_movements_inventory ON ${AppConstants.tableStockMovements}(inventory_id)');
   }
 
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
     if (oldVersion < 2) {
-      await _migrateInventoryToVehicleAware(db);
+      await _migrateToV2(db);
+    }
+    if (oldVersion < 3) {
+      await _migrateToV3(db);
     }
   }
 
-  Future<void> _migrateInventoryToVehicleAware(Database db) async {
+  Future<void> _migrateToV2(Database db) async {
     await db.execute('PRAGMA foreign_keys = OFF');
     await db.execute('''
       CREATE TABLE inventory_new (
@@ -150,7 +163,6 @@ class DatabaseHelper {
         updated_at        INTEGER NOT NULL
       )
     ''');
-
     await db.execute('''
       INSERT INTO inventory_new (
         id, name, brand, part_number, category, quantity, notes, image_path,
@@ -160,14 +172,34 @@ class DatabaseHelper {
         created_at, updated_at
       FROM ${AppConstants.tableInventory}
     ''');
-
     await db.execute('DROP TABLE ${AppConstants.tableInventory}');
     await db.execute('ALTER TABLE inventory_new RENAME TO ${AppConstants.tableInventory}');
-    await db.execute(
-        'CREATE INDEX idx_inventory_part_number ON ${AppConstants.tableInventory}(part_number)');
-    await db.execute(
-        'CREATE INDEX idx_inventory_vehicle ON ${AppConstants.tableInventory}(vehicle_id)');
+    await db.execute('CREATE INDEX idx_inventory_part_number ON ${AppConstants.tableInventory}(part_number)');
+    await db.execute('CREATE INDEX idx_inventory_vehicle ON ${AppConstants.tableInventory}(vehicle_id)');
     await db.execute('PRAGMA foreign_keys = ON');
+  }
+
+  Future<void> _migrateToV3(Database db) async {
+    // Add new columns to inventory
+    await db.execute('ALTER TABLE ${AppConstants.tableInventory} ADD COLUMN name_gr TEXT');
+    await db.execute('ALTER TABLE ${AppConstants.tableInventory} ADD COLUMN description TEXT');
+    await db.execute('ALTER TABLE ${AppConstants.tableInventory} ADD COLUMN description_gr TEXT');
+    await db.execute('ALTER TABLE ${AppConstants.tableInventory} ADD COLUMN min_quantity INTEGER NOT NULL DEFAULT 0');
+    await db.execute('ALTER TABLE ${AppConstants.tableInventory} ADD COLUMN compatible_vehicle_ids TEXT');
+
+    // Create stock movements table
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS ${AppConstants.tableStockMovements} (
+        id               INTEGER PRIMARY KEY AUTOINCREMENT,
+        inventory_id     INTEGER NOT NULL REFERENCES ${AppConstants.tableInventory}(id) ON DELETE CASCADE,
+        type             TEXT NOT NULL,
+        quantity_change  INTEGER NOT NULL,
+        job_id           INTEGER REFERENCES ${AppConstants.tableJobs}(id) ON DELETE SET NULL,
+        notes            TEXT,
+        created_at       INTEGER NOT NULL
+      )
+    ''');
+    await db.execute('CREATE INDEX IF NOT EXISTS idx_stock_movements_inventory ON ${AppConstants.tableStockMovements}(inventory_id)');
   }
 
   // ── Generic helpers ───────────────────────────────────────────────────────

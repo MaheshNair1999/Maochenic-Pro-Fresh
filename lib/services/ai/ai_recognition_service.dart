@@ -11,6 +11,7 @@ import '../ocr/ocr_service.dart';
 /// Result from AI-powered part recognition.
 class PartRecognitionResult {
   final String partName;
+  final String? partNameGr;
   final String? vehicleMake;
   final String? vehicleModel;
   final String? vehicleYear;
@@ -19,12 +20,14 @@ class PartRecognitionResult {
   final String? oemNumber;
   final String? category;
   final String? description;
+  final String? descriptionGr;
   final String? compatibility;
   final double confidence;
   final List<String> alternativeNames;
 
   const PartRecognitionResult({
     required this.partName,
+    this.partNameGr,
     this.vehicleMake,
     this.vehicleModel,
     this.vehicleYear,
@@ -33,6 +36,7 @@ class PartRecognitionResult {
     this.oemNumber,
     this.category,
     this.description,
+    this.descriptionGr,
     this.compatibility,
     this.confidence = 0.0,
     this.alternativeNames = const [],
@@ -330,6 +334,8 @@ Use the image first. Recognize common automotive parts even when there is no rea
 
 Use visible markings and OCR text only as supporting evidence. If a manufacturer, part number, or OEM number is visible, read it. If compatibility is obvious, return it. Use vehicle context automatically when present.
 
+Provide "partName" and "description" in English, and "partNameGr" and "descriptionGr" as their Greek translations (e.g. Oil Filter -> Φίλτρο Λαδιού). Keep descriptions short (1-2 sentences).
+
 Vehicle context:
 ${jsonEncode(vehicleContext?.toJson() ?? <String, dynamic>{})}
 
@@ -339,6 +345,7 @@ ${jsonEncode(ocrText ?? '')}
 Return ONLY valid JSON, no markdown, no explanation:
 {
   "partName":"",
+  "partNameGr":"",
   "vehicleMake":"",
   "vehicleModel":"",
   "vehicleYear":"",
@@ -347,6 +354,7 @@ Return ONLY valid JSON, no markdown, no explanation:
   "oemNumber":"",
   "category":"",
   "description":"",
+  "descriptionGr":"",
   "compatibility":"",
   "confidence":0.0,
   "alternativeNames":[]
@@ -439,6 +447,7 @@ If the object is clearly an automotive part but the exact variant is uncertain, 
 
       return PartRecognitionResult(
         partName: _jsonString(json, 'partName') ?? 'Unknown Part',
+        partNameGr: _jsonString(json, 'partNameGr'),
         vehicleMake:
             _prefer(_jsonString(json, 'vehicleMake'), vehicleContext?.make),
         vehicleModel:
@@ -450,6 +459,7 @@ If the object is clearly an automotive part but the exact variant is uncertain, 
         oemNumber: _jsonString(json, 'oemNumber'),
         category: _jsonString(json, 'category'),
         description: _jsonString(json, 'description'),
+        descriptionGr: _jsonString(json, 'descriptionGr'),
         compatibility: _prefer(
           _jsonString(json, 'compatibility'),
           vehicleContext?.displayName,

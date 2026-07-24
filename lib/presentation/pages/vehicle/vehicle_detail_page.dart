@@ -9,6 +9,7 @@ import '../../../core/router/app_router.dart';
 import '../../../data/models/job_model.dart';
 import '../../../data/models/vehicle_context.dart';
 import '../../../data/models/vehicle_model.dart';
+import '../../providers/inventory_provider.dart';
 import '../../providers/job_provider.dart';
 import '../../providers/vehicle_provider.dart';
 import '../../widgets/common/app_widgets.dart';
@@ -157,6 +158,63 @@ class _VehicleDetailView extends ConsumerWidget {
                   ),
                 ),
               ).animate().fadeIn(duration: 400.ms),
+            ),
+          ),
+
+          // ── Compatible parts from inventory ────────────────────────────
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 24, 16, 0),
+              child: ref.watch(compatiblePartsProvider(vehicle.id!)).maybeWhen(
+                    data: (parts) => parts.isEmpty
+                        ? const SizedBox.shrink()
+                        : Card(
+                            margin: EdgeInsets.zero,
+                            child: Padding(
+                              padding: const EdgeInsets.all(16),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(children: [
+                                    Icon(Icons.build_circle_outlined,
+                                        size: 20, color: theme.colorScheme.primary),
+                                    const SizedBox(width: 8),
+                                    Text('Compatible Parts in Stock',
+                                        style: theme.textTheme.headlineSmall),
+                                  ]),
+                                  const SizedBox(height: 4),
+                                  Text('Συμβατά ανταλλακτικά στην αποθήκη',
+                                      style: theme.textTheme.bodySmall),
+                                  const SizedBox(height: 12),
+                                  ...parts.map((p) => ListTile(
+                                        contentPadding: EdgeInsets.zero,
+                                        dense: true,
+                                        leading: Icon(Icons.build_outlined,
+                                            size: 20, color: theme.colorScheme.primary),
+                                        title: Text(p.nameGr == null
+                                            ? p.name
+                                            : '${p.name} / ${p.nameGr}'),
+                                        subtitle: p.partNumber != null
+                                            ? Text('PN: ${p.partNumber}')
+                                            : null,
+                                        trailing: Text(
+                                          'x${p.quantity}',
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.w700,
+                                            color: p.quantity > 0
+                                                ? const Color(0xFF1E8449)
+                                                : theme.colorScheme.error,
+                                          ),
+                                        ),
+                                        onTap: () => context.push(
+                                            '${AppRoutes.inventory}/${p.id}'),
+                                      )),
+                                ],
+                              ),
+                            ),
+                          ),
+                    orElse: () => const SizedBox.shrink(),
+                  ),
             ),
           ),
 

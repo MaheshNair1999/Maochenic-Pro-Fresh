@@ -6,11 +6,13 @@ import 'package:printing/printing.dart';
 
 import '../../../data/models/job_model.dart';
 import '../../../data/models/inventory_model.dart';
+import '../../../data/models/stock_movement_model.dart';
 import '../../../data/models/vehicle_model.dart';
 import '../../../services/pdf/pdf_generator.dart';
 import '../../providers/job_provider.dart';
 import '../../providers/vehicle_provider.dart';
 import '../../providers/inventory_provider.dart';
+import '../../providers/stock_movement_provider.dart';
 import '../../widgets/common/app_widgets.dart';
 
 class JobDetailPage extends ConsumerStatefulWidget {
@@ -59,6 +61,7 @@ class _JobDetailPageState extends ConsumerState<JobDetailPage> {
     );
     await ref.read(jobRepositoryProvider).updateJob(updated);
     await ref.read(jobRepositoryProvider).replaceJobParts(job.id!, _parts);
+    await _syncInventoryStock(job);
     // Invalidate so the next visit to this job reloads fresh data from DB.
     // _initialised guard keeps the current page showing correctly without a spinner.
     ref.invalidate(jobByIdProvider(widget.jobId));
@@ -67,6 +70,49 @@ class _JobDetailPageState extends ConsumerState<JobDetailPage> {
     if (mounted) {
       setState(() => _isSaving = false);
       showSuccessSnackbar(context, 'Job sheet saved!');
+    }
+  }
+
+  /// Deducts (or returns) inventory stock based on the difference between the
+  /// job's previously saved parts and the current part list. Only parts linked
+  /// to an inventory item (inventoryId != null) affect stock.
+  Future<void> _syncInventoryStock(JobModel job) async {
+    final oldQty = <int, int>{};
+    for (final p in job.parts) {
+      if (p.inventoryId != null) {
+        oldQty[p.inventoryId!] = (oldQty[p.inventoryId!] ?? 0) + p.quantity;
+      }
+    }
+    final newQty = <int, int>{};
+    for (final p in _parts) {
+      if (p.inventoryId != null) {
+        newQty[p.inventoryId!] = (newQty[p.inventoryId!] ?? 0) + p.quantity;
+      }
+    }
+
+    final inventoryRepo = ref.read(inventoryRepositoryProvider);
+    final movementRepo = ref.read(stockMovementRepositoryProvider);
+    final now = DateTime.now();
+    final allIds = {...oldQty.keys, ...newQty.keys};
+
+    for (final id in allIds) {
+      final delta = (newQty[id] ?? 0) - (oldQty[id] ?? 0);
+      if (delta == 0) continue;
+      // delta > 0 → more used now → deduct stock. delta < 0 → return stock.
+      await inventoryRepo.adjustQuantity(id, -delta);
+      await movementRepo.insert(StockMovementModel(
+        inventoryId: id,
+        type: delta > 0 ? 'used_in_job' : 'returned_from_job',
+        quantityChange: -delta,
+        jobId: job.id,
+        notes: 'Job #${job.id}',
+        createdAt: now,
+      ));
+    }
+
+    if (allIds.isNotEmpty) {
+      await ref.read(inventoryProvider.notifier).refresh();
+      ref.invalidate(lowStockProvider);
     }
   }
 

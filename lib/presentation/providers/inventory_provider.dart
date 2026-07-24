@@ -4,12 +4,10 @@ import '../../data/models/inventory_model.dart';
 import '../../data/repositories/inventory_repository.dart';
 import 'vehicle_provider.dart';
 
-// ── Repository ────────────────────────────────────────────────────────────────
 final inventoryRepositoryProvider = Provider<InventoryRepository>(
   (ref) => InventoryRepository(),
 );
 
-// ── Sort state ────────────────────────────────────────────────────────────────
 final inventorySortProvider = StateProvider<String>((ref) => 'Name A–Z');
 
 String _sortToOrderBy(String sort) {
@@ -23,8 +21,6 @@ String _sortToOrderBy(String sort) {
     _ => 'name ASC',
   };
 }
-
-// ── List ──────────────────────────────────────────────────────────────────────
 
 class InventoryNotifier extends AsyncNotifier<List<InventoryModel>> {
   @override
@@ -49,7 +45,6 @@ class InventoryNotifier extends AsyncNotifier<List<InventoryModel>> {
     );
   }
 
-  /// Adds a part, incrementing quantity if part number already exists.
   Future<int> addItem(InventoryModel item) async {
     final id = await ref.read(inventoryRepositoryProvider).insertOrIncrement(item);
     await refresh();
@@ -72,13 +67,11 @@ final inventoryProvider =
   InventoryNotifier.new,
 );
 
-// ── Single item ───────────────────────────────────────────────────────────────
 final inventoryItemByIdProvider =
-    FutureProvider.family<InventoryModel?, int>((ref, id) {
+    FutureProvider.autoDispose.family<InventoryModel?, int>((ref, id) {
   return ref.read(inventoryRepositoryProvider).getById(id);
 });
 
-// ── Search ────────────────────────────────────────────────────────────────────
 final inventorySearchProvider =
     FutureProvider.family<List<InventoryModel>, String>((ref, query) {
   final vehicleId = ref.watch(activeVehicleContextProvider)?.vehicleId;
@@ -91,4 +84,13 @@ final inventorySearchProvider =
 final vehicleInventoryProvider =
     FutureProvider.family<List<InventoryModel>, int>((ref, vehicleId) {
   return ref.read(inventoryRepositoryProvider).getAll(vehicleId: vehicleId);
+});
+
+final lowStockProvider = FutureProvider<List<InventoryModel>>((ref) {
+  return ref.read(inventoryRepositoryProvider).getLowStock();
+});
+
+final compatiblePartsProvider =
+    FutureProvider.autoDispose.family<List<InventoryModel>, int>((ref, vehicleId) {
+  return ref.read(inventoryRepositoryProvider).getCompatibleWithVehicle(vehicleId);
 });

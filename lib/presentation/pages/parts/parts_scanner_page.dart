@@ -6,9 +6,11 @@ import 'package:flutter_animate/flutter_animate.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/utils/image_utils.dart';
 import '../../../data/models/inventory_model.dart';
+import '../../../data/models/stock_movement_model.dart';
 import '../../../services/ai/ai_recognition_service.dart';
 import '../../../services/ocr/ocr_service.dart';
 import '../../providers/inventory_provider.dart';
+import '../../providers/stock_movement_provider.dart';
 import '../../providers/vehicle_provider.dart';
 import '../../widgets/common/app_widgets.dart';
 import '../camera/camera_capture_page.dart';
@@ -30,9 +32,12 @@ class _PartsScannerPageState extends ConsumerState<PartsScannerPage> {
 
   // Form controllers
   final _nameCtrl = TextEditingController();
+  final _nameGrCtrl = TextEditingController();
   final _brandCtrl = TextEditingController();
   final _partNumCtrl = TextEditingController();
   final _oemCtrl = TextEditingController();
+  final _descCtrl = TextEditingController();
+  final _descGrCtrl = TextEditingController();
   final _notesCtrl = TextEditingController();
   String? _selectedCategory;
   String? _compatibility;
@@ -48,9 +53,12 @@ class _PartsScannerPageState extends ConsumerState<PartsScannerPage> {
   void dispose() {
     _ocr.dispose();
     _nameCtrl.dispose();
+    _nameGrCtrl.dispose();
     _brandCtrl.dispose();
     _partNumCtrl.dispose();
     _oemCtrl.dispose();
+    _descCtrl.dispose();
+    _descGrCtrl.dispose();
     _notesCtrl.dispose();
     super.dispose();
   }
@@ -106,8 +114,11 @@ class _PartsScannerPageState extends ConsumerState<PartsScannerPage> {
             aiResult.partName == 'Scanned Part' && ocrResult.modelNumber != null
                 ? ocrResult.modelNumber!
                 : aiResult.partName;
+        _nameGrCtrl.text = aiResult.partNameGr ?? '';
         _selectedCategory = aiResult.category;
         _aiDescription = aiResult.description;
+        _descCtrl.text = aiResult.description ?? '';
+        _descGrCtrl.text = aiResult.descriptionGr ?? '';
         _confidence = aiResult.confidence;
         _compatibility = aiResult.compatibility;
 
@@ -152,6 +163,9 @@ class _PartsScannerPageState extends ConsumerState<PartsScannerPage> {
         vehicleModel: vehicleContext?.model,
         vehicleYear: vehicleContext?.year,
         name: storedName,
+        nameGr: _nameGrCtrl.text.trim().isNotEmpty
+            ? _nameGrCtrl.text.trim()
+            : null,
         brand:
             _brandCtrl.text.trim().isNotEmpty ? _brandCtrl.text.trim() : null,
         partNumber: _partNumCtrl.text.trim().isNotEmpty
@@ -161,6 +175,14 @@ class _PartsScannerPageState extends ConsumerState<PartsScannerPage> {
             _oemCtrl.text.trim().isNotEmpty ? _oemCtrl.text.trim() : null,
         category: _selectedCategory,
         compatibility: _compatibility ?? vehicleLabel,
+        description:
+            _descCtrl.text.trim().isNotEmpty ? _descCtrl.text.trim() : null,
+        descriptionGr: _descGrCtrl.text.trim().isNotEmpty
+            ? _descGrCtrl.text.trim()
+            : null,
+        compatibleVehicleIds: vehicleContext?.vehicleId != null
+            ? [vehicleContext!.vehicleId!]
+            : const [],
         notes:
             _notesCtrl.text.trim().isNotEmpty ? _notesCtrl.text.trim() : null,
         confidenceScore: _confidence,
@@ -169,7 +191,18 @@ class _PartsScannerPageState extends ConsumerState<PartsScannerPage> {
         updatedAt: now,
       );
 
-      await ref.read(inventoryProvider.notifier).addItem(item);
+      final itemId = await ref.read(inventoryProvider.notifier).addItem(item);
+
+      // Log stock movement: part received into inventory
+      await ref.read(stockMovementRepositoryProvider).insert(
+            StockMovementModel(
+              inventoryId: itemId,
+              type: 'received',
+              quantityChange: 1,
+              notes: 'Scanned and added / Σαρώθηκε και προστέθηκε',
+              createdAt: now,
+            ),
+          );
 
       if (mounted) {
         showSuccessSnackbar(context, 'Added to inventory!');
@@ -190,9 +223,12 @@ class _PartsScannerPageState extends ConsumerState<PartsScannerPage> {
       _aiDescription = null;
       _confidence = 0;
       _nameCtrl.clear();
+      _nameGrCtrl.clear();
       _brandCtrl.clear();
       _partNumCtrl.clear();
       _oemCtrl.clear();
+      _descCtrl.clear();
+      _descGrCtrl.clear();
       _notesCtrl.clear();
       _selectedCategory = null;
       _compatibility = null;
@@ -453,12 +489,20 @@ class _PartsScannerPageState extends ConsumerState<PartsScannerPage> {
             const SizedBox(height: 12),
 
             LabelledTextField(
-              label: 'Part Name *',
+              label: 'Part Name (English) *',
               hint: 'e.g. Oil Filter',
               controller: _nameCtrl,
               prefixIcon: Icons.build_outlined,
               validator: (v) =>
                   (v == null || v.trim().isEmpty) ? 'Required' : null,
+            ),
+            const SizedBox(height: 12),
+
+            LabelledTextField(
+              label: 'Όνομα Ανταλλακτικού (Ελληνικά)',
+              hint: 'π.χ. Φίλτρο Λαδιού',
+              controller: _nameGrCtrl,
+              prefixIcon: Icons.translate,
             ),
             const SizedBox(height: 12),
 
@@ -490,6 +534,22 @@ class _PartsScannerPageState extends ConsumerState<PartsScannerPage> {
               hint: 'e.g. manufacturer OEM reference',
               controller: _oemCtrl,
               prefixIcon: Icons.confirmation_number_outlined,
+            ),
+            const SizedBox(height: 12),
+
+            LabelledTextField(
+              label: 'Description (English)',
+              hint: 'Short part description…',
+              controller: _descCtrl,
+              maxLines: 2,
+            ),
+            const SizedBox(height: 12),
+
+            LabelledTextField(
+              label: 'Περιγραφή (Ελληνικά)',
+              hint: 'Σύντομη περιγραφή…',
+              controller: _descGrCtrl,
+              maxLines: 2,
             ),
             const SizedBox(height: 12),
 
@@ -534,7 +594,15 @@ class _CategoryDropdown extends StatelessWidget {
           hint: const Text('Select category'),
           isExpanded: true,
           items: AppConstants.partCategories
-              .map((c) => DropdownMenuItem(value: c, child: Text(c)))
+              .map((c) => DropdownMenuItem(
+                    value: c,
+                    child: Text(
+                      AppConstants.partCategoryGr[c] == null
+                          ? c
+                          : '$c / ${AppConstants.partCategoryGr[c]}',
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ))
               .toList(),
           onChanged: onChanged,
         ),

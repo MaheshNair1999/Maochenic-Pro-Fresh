@@ -93,6 +93,32 @@ class _InventoryPageState extends ConsumerState<InventoryPage> {
             ),
           ).animate().fadeIn(duration: 300.ms),
 
+          // ── Low stock alert ─────────────────────────────────────────
+          ref.watch(lowStockProvider).maybeWhen(
+                data: (lowItems) => lowItems.isEmpty
+                    ? const SizedBox.shrink()
+                    : Container(
+                        margin: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF39C12).withValues(alpha: 0.12),
+                          border: Border.all(color: const Color(0xFFF39C12).withValues(alpha: 0.4)),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Row(children: [
+                          const Icon(Icons.warning_amber_rounded, color: Color(0xFFF39C12), size: 20),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              '${lowItems.length} item(s) low on stock / Χαμηλό απόθεμα',
+                              style: theme.textTheme.bodySmall?.copyWith(color: const Color(0xFFB9770E), fontWeight: FontWeight.w600),
+                            ),
+                          ),
+                        ]),
+                      ),
+                orElse: () => const SizedBox.shrink(),
+              ),
+
           // ── Sort label ──────────────────────────────────────────────
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
@@ -210,6 +236,15 @@ class _InventoryCard extends ConsumerWidget {
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                       ),
+                      if (item.nameGr != null)
+                        Text(
+                          item.nameGr!,
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            fontStyle: FontStyle.italic,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       if (item.compatibility != null)
                         Text(
                           item.compatibility!,
@@ -249,16 +284,19 @@ class _InventoryCard extends ConsumerWidget {
                   ),
                 ),
 
-                // Quantity badge
+                // Quantity badge (green = ok, amber = low stock, red = empty)
                 Column(
                   children: [
                     Container(
                       width: 42,
                       height: 42,
                       decoration: BoxDecoration(
-                        color: item.quantity > 0
-                            ? const Color(0xFF1E8449).withValues(alpha: 0.15)
-                            : theme.colorScheme.error.withValues(alpha: 0.15),
+                        color: (item.quantity <= 0
+                                ? theme.colorScheme.error
+                                : item.isLowStock
+                                    ? const Color(0xFFF39C12)
+                                    : const Color(0xFF1E8449))
+                            .withValues(alpha: 0.15),
                         shape: BoxShape.circle,
                       ),
                       child: Center(
@@ -267,15 +305,21 @@ class _InventoryCard extends ConsumerWidget {
                           style: TextStyle(
                             fontWeight: FontWeight.w800,
                             fontSize: 16,
-                            color: item.quantity > 0
-                                ? const Color(0xFF1E8449)
-                                : theme.colorScheme.error,
+                            color: item.quantity <= 0
+                                ? theme.colorScheme.error
+                                : item.isLowStock
+                                    ? const Color(0xFFB9770E)
+                                    : const Color(0xFF1E8449),
                           ),
                         ),
                       ),
                     ),
                     const SizedBox(height: 2),
-                    Text('qty', style: theme.textTheme.bodySmall),
+                    if (item.isLowStock)
+                      const Icon(Icons.warning_amber_rounded,
+                          size: 14, color: Color(0xFFF39C12))
+                    else
+                      Text('qty', style: theme.textTheme.bodySmall),
                   ],
                 ),
 

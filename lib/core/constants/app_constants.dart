@@ -4,13 +4,14 @@ class AppConstants {
 
   // ── Database ─────────────────────────────────────────────────────────────
   static const String dbName = 'mechpro.db';
-  static const int dbVersion = 2;
+  static const int dbVersion = 3;
 
   // Table names
   static const String tableVehicles = 'vehicles';
   static const String tableInventory = 'inventory';
   static const String tableJobs = 'jobs';
   static const String tableJobParts = 'job_parts';
+  static const String tableStockMovements = 'stock_movements';
 
   // ── AI ───────────────────────────────────────────────────────────────────
   /// Load the Gemini API key at build time via --dart-define.
@@ -28,6 +29,36 @@ class AppConstants {
     'gemini-2.0-flash',
     'gemini-1.5-flash',
   ];
+
+  // ── Greek category translations ───────────────────────────────────────────
+  static const Map<String, String> partCategoryGr = {
+    'Oil Filter': 'Φίλτρο Λαδιού',
+    'Air Filter': 'Φίλτρο Αέρα',
+    'Cabin Filter': 'Φίλτρο Καμπίνας',
+    'Fuel Filter': 'Φίλτρο Καυσίμου',
+    'Spark Plug': 'Μπουζί',
+    'Brake Pads': 'Τακάκια Φρένων',
+    'Brake Disc': 'Δίσκος Φρένων',
+    'Battery': 'Μπαταρία',
+    'Drive Belt': 'Ιμάντας Κίνησης',
+    'Timing Belt': 'Ιμάντας Χρονισμού',
+    'Water Pump': 'Αντλία Νερού',
+    'Alternator': 'Δυναμό',
+    'Headlight Bulb': 'Λαμπτήρας Φαναριού',
+    'Wiper Blade': 'Υαλοκαθαριστήρας',
+    'Coolant': 'Ψυκτικό Υγρό',
+    'Engine Oil': 'Λάδι Κινητήρα',
+    'Transmission Fluid': 'Λάδι Κιβωτίου',
+    'Brake Fluid': 'Υγρό Φρένων',
+    'Power Steering Fluid': 'Υγρό Υδραυλικής Διεύθυνσης',
+    'Thermostat': 'Θερμοστάτης',
+    'Radiator': 'Ψυγείο',
+    'Starter Motor': 'Μίζα',
+    'Fuel Pump': 'Αντλία Καυσίμου',
+    'Oxygen Sensor': 'Αισθητήρας Οξυγόνου',
+    'Mass Air Flow Sensor': 'Αισθητήρας Μάζας Αέρα',
+    'Other': 'Άλλο',
+  };
 
   // ── Image ────────────────────────────────────────────────────────────────
   static const double imageQuality = 85;
